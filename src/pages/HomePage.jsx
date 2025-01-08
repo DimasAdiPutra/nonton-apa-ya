@@ -100,6 +100,9 @@ const HomePage = () => {
 		setIsModalOpen(false) // Tutup modal
 	}
 
+	// mengubah Popularity jadi base 100
+	const max_popularity = 5000
+
 	return (
 		<>
 			{/* Header */}
@@ -114,6 +117,7 @@ const HomePage = () => {
 				</p>
 				<a className="btn btn-primary text-base-100 w-max z-10">Lihat yuk!</a>
 
+				{/* Wave Svg */}
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					viewBox="0 0 1440 320"
@@ -132,6 +136,7 @@ const HomePage = () => {
 					{/* Search Input */}
 					<label className="join-item input input-bordered flex items-center gap-2">
 						<input type="text" className="grow" placeholder="Search" />
+						{/* Search SVG */}
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							viewBox="0 0 16 16"
@@ -146,6 +151,7 @@ const HomePage = () => {
 					</label>
 					{/* Filter Button */}
 					<button className="join-item btn btn-accent" onClick={openModal}>
+						{/* Filter SVG */}
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							height="24px"
@@ -175,18 +181,31 @@ const HomePage = () => {
 				/>
 
 				{/* Cards */}
-				<div className="px-4 flex flex-wrap gap-6 justify-center items-center">
+				<div className="px-4 flex flex-wrap gap-6 justify-center items-stretch">
 					{/* Card */}
 					{loading ? (
 						<p>loading....</p>
 					) : (
-						movies.map((movie) => (
-							<MovieCard
-								title={movie.title}
-								poster={`${IMAGE_URL}/${movie.poster_path}`}
-								key={movie.id}
-							/>
-						))
+						movies.map((movie) => {
+							// Mapping genre_ids ke nama genre
+							const movieGenres = movie.genre_ids
+								.map((id) => genres.find((genre) => genre.id === id)?.name)
+								.filter(Boolean) // Hapus undefined jika id tidak cocok
+
+							return (
+								<MovieCard
+									title={movie.title}
+									poster={`${IMAGE_URL}/${movie.poster_path}`}
+									releaseDate={movie.release_date}
+									popularity={(
+										(movie.popularity / max_popularity) *
+										100
+									).toFixed(2)}
+									genres={movieGenres}
+									key={movie.id}
+								/>
+							)
+						})
 					)}
 				</div>
 			</main>
@@ -195,6 +214,3 @@ const HomePage = () => {
 }
 
 export default HomePage
-
-// TODO
-// genre TMDB hanya menerima id genre
