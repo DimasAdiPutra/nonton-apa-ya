@@ -42,6 +42,9 @@ const HomePage = () => {
 	const [selectedGenre, setSelectedGenre] = useState('all') // Tambahkan state untuk genre
 	const [pendingGenre, setPendingGenre] = useState(selectedGenre) // Pending genre untuk modal
 
+	// Search Query
+	const [searchQuery, setSearchQuery] = useState('')
+
 	// Loading untuk unlimited scroll
 	const [loading, setLoading] = useState(false)
 
@@ -71,17 +74,19 @@ const HomePage = () => {
 		setLoading(true)
 		try {
 			const data = await fetchMovies({
+				query: searchQuery !== '' ? searchQuery : undefined,
 				page,
 				sort: selectedSort,
 				genre: selectedGenre !== 'all' ? selectedGenre : undefined,
 			})
+
 			setMovies(data.results || [])
 		} catch (error) {
 			console.error('Failed to fetch movies:', error)
 		} finally {
 			setLoading(false)
 		}
-	}, [page, selectedGenre, selectedSort]) // Hanya tergantung pada selectedGenre
+	}, [page, searchQuery, selectedGenre, selectedSort]) // Hanya tergantung pada selectedGenre
 
 	// ambil genres
 	const fetchGenres = async () => {
@@ -135,7 +140,12 @@ const HomePage = () => {
 				<div className="join flex w-full justify-center mb-10">
 					{/* Search Input */}
 					<label className="join-item input input-bordered flex items-center gap-2">
-						<input type="text" className="grow" placeholder="Search" />
+						<input
+							type="text"
+							className="grow"
+							placeholder="Search"
+							onChange={(e) => setSearchQuery(e.target.value)}
+						/>
 						{/* Search SVG */}
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
@@ -160,10 +170,6 @@ const HomePage = () => {
 							fill="#fff">
 							<path d="M400-240v-80h160v80H400ZM240-440v-80h480v80H240ZM120-640v-80h720v80H120Z" />
 						</svg>
-					</button>
-					{/* Search button */}
-					<button className="join-item btn btn-primary text-base-100">
-						Cari
 					</button>
 				</div>
 

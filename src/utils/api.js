@@ -21,12 +21,45 @@ export const fetchMovies = async ({
 				language: 'id-ID',
 				page,
 				query: query || undefined, // Kata kunci pencarian
-				sort_by: sort || undefined, // Penyortiran
-				with_genres: genre || undefined, // Filter genre
+				sort_by: query ? undefined : sort || undefined, // Penyortiran
+				with_genres: query ? undefined : genre || undefined, // Filter genre hanya untuk discover
 			},
 		})
 
-		return response.data
+		let tempResults = response.data.results
+
+		// Filter hasil secara manual jika menggunakan query dan genre
+		if (query && genre) {
+			tempResults = tempResults.filter((movie) =>
+				movie.genre_ids.includes(Number(genre))
+			)
+		}
+
+		if (query && sort) {
+			if (sort === 'popularity.desc') {
+				tempResults = tempResults.sort((a, b) => b.popularity - a.popularity)
+			} else if (sort === 'popularity.asc') {
+				tempResults = tempResults.sort((a, b) => a.popularity - b.popularity)
+			} else if (sort === 'release_date.desc') {
+				tempResults = tempResults.sort(
+					(a, b) => new Date(b.release_date) - new Date(a.release_date)
+				)
+			} else if (sort === 'release_date.asc') {
+				tempResults = tempResults.sort(
+					(a, b) => new Date(a.release_date) - new Date(b.release_date)
+				)
+			} else if (sort === 'vote_average.desc') {
+				tempResults = tempResults.sort(
+					(a, b) => b.vote_average - a.vote_average
+				)
+			} else if (sort === 'vote_average.asc') {
+				tempResults = tempResults.sort(
+					(a, b) => a.vote_average - b.vote_average
+				)
+			}
+		}
+
+		return { ...response.data, results: tempResults }
 	} catch (error) {
 		console.error('Error fetching movies:', error)
 		throw error

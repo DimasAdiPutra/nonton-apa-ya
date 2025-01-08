@@ -1,6 +1,6 @@
 const MovieCard = ({ poster, title, releaseDate, popularity, genres }) => {
 	return (
-		<div className="card bg-neutral w-full shadow-xl max-w-sm h-full min-h-[650px] justify-center">
+		<div className="card bg-neutral w-full shadow-xl max-w-sm h-full min-h-[650px] justify-end">
 			<figure className="px-10 pt-10">
 				<img src={poster} alt={title} className="rounded-xl" />
 			</figure>
