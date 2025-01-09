@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 // Components
 import MovieCard from '../components/MovieCard'
@@ -6,15 +6,19 @@ import FilterAndSortModal from '../components/FilterAndSortModal'
 
 // Utilities
 import { fetchMovies, getGenres } from '../utils/api'
-import { useCallback } from 'react'
 
 const IMAGE_URL = import.meta.env.VITE_TMDB_IMAGE_URL
 
 const HomePage = () => {
 	// Background Image untuk hero section
 	const [backgroundImage, setBackgroundImage] = useState('')
-	// eslint-disable-next-line no-unused-vars
+
+	// Infinite Scroll
 	const [page, setPage] = useState(1)
+	const observer = useRef() // Ref untuk Intersection Observer
+
+	// total page dari movie
+	const [totalPages, setTotalPages] = useState(2)
 
 	// Status modal
 	const [isModalOpen, setIsModalOpen] = useState(false)
@@ -22,7 +26,7 @@ const HomePage = () => {
 	// Simpan movies
 	const [movies, setMovies] = useState([])
 
-	// genre
+	// Genre
 	const [genres, setGenres] = useState([])
 
 	// Sort option yang tersedia
@@ -35,24 +39,23 @@ const HomePage = () => {
 		{ value: 'vote_average.asc', label: 'Lowest Rated' },
 	])
 
-	// Sort option yang di pilih
+	// Sort dan Genre yang dipilih
 	const [selectedSort, setSelectedSort] = useState('popularity.desc')
-	const [pendingSort, setPendingSort] = useState(selectedSort) // Sort sementara di modal
-
-	const [selectedGenre, setSelectedGenre] = useState('all') // Tambahkan state untuk genre
-	const [pendingGenre, setPendingGenre] = useState(selectedGenre) // Pending genre untuk modal
+	const [pendingSort, setPendingSort] = useState(selectedSort)
+	const [selectedGenre, setSelectedGenre] = useState('all')
+	const [pendingGenre, setPendingGenre] = useState(selectedGenre)
 
 	// Search Query
 	const [searchQuery, setSearchQuery] = useState('')
 
-	// Loading untuk unlimited scroll
+	// Loading dan Error
 	const [loading, setLoading] = useState(false)
 
 	// Set background image untuk hero section
 	useEffect(() => {
 		const fetchInitialData = async () => {
 			try {
-				const data = await fetchMovies({ page })
+				const data = await fetchMovies({ page: 1 })
 				if (data.results.length > 0) {
 					setBackgroundImage(`${IMAGE_URL}/${data.results[0].backdrop_path}`)
 				}
@@ -61,7 +64,7 @@ const HomePage = () => {
 			}
 		}
 		fetchInitialData()
-	}, [page])
+	}, [])
 
 	// Function to open modal
 	const openModal = () => setIsModalOpen(true)
@@ -77,33 +80,80 @@ const HomePage = () => {
 				query: searchQuery !== '' ? searchQuery : undefined,
 				page,
 				sort: selectedSort,
-				genre: selectedGenre !== 'all' ? selectedGenre : undefined,
+				genre: selectedGenre !== 'all' ? selectedGenre : '',
 			})
 
-			setMovies(data.results || [])
+			// Update totalPages dari respons API
+			setTotalPages(data.total_pages)
+
+			// Cegah duplikasi dengan filter berdasarkan `id`
+			setMovies((prevMovies) => {
+				if (page > 1) {
+					const newMovies = data.results.filter(
+						(newMovie) => !prevMovies.some((movie) => movie.id === newMovie.id)
+					)
+					return [...prevMovies, ...newMovies]
+				}
+				return data.results
+			})
 		} catch (error) {
 			console.error('Failed to fetch movies:', error)
 		} finally {
 			setLoading(false)
 		}
-	}, [page, searchQuery, selectedGenre, selectedSort]) // Hanya tergantung pada selectedGenre
+	}, [page, searchQuery, selectedSort, selectedGenre])
 
-	// ambil genres
+	// Ambil genres
 	const fetchGenres = async () => {
-		const data = await getGenres()
-		setGenres(data)
+		try {
+			const data = await getGenres()
+			setGenres(data)
+		} catch (error) {
+			console.error('Failed to fetch genres:', error)
+		}
 	}
 
 	useEffect(() => {
 		fetchGenres()
+	}, [])
+
+	useEffect(() => {
 		fetchMoviesList()
 	}, [fetchMoviesList])
 
+	useEffect(() => {
+		// Reset daftar film dan halaman saat filter berubah
+		setMovies([])
+		setPage(1)
+	}, [searchQuery, selectedGenre, selectedSort])
+
 	const handleApplyFilters = () => {
-		setSelectedGenre(pendingGenre) // Terapkan sort yang dipilih di modal
-		setSelectedSort(pendingSort) // Terapkan sort yang dipilih di modal
-		setIsModalOpen(false) // Tutup modal
+		setSelectedGenre(pendingGenre)
+		setSelectedSort(pendingSort)
+		setIsModalOpen(false)
 	}
+
+	// Handle Observer
+	useEffect(() => {
+		observer.current = new IntersectionObserver(
+			(entries) => {
+				if (entries[0].isIntersecting && !loading && page < totalPages) {
+					console.log('footer')
+					setPage((prevPage) => prevPage + 1)
+				}
+			},
+			{ threshold: 0.5 }
+		)
+
+		const sentinel = document.getElementById('sentinel')
+		if (sentinel) {
+			observer.current.observe(sentinel)
+		}
+
+		return () => {
+			if (sentinel) observer.current.unobserve(sentinel)
+		}
+	}, [loading, page, totalPages])
 
 	// mengubah Popularity jadi base 100
 	const max_popularity = 5000
@@ -189,32 +239,42 @@ const HomePage = () => {
 				{/* Cards */}
 				<div className="px-4 flex flex-wrap gap-6 justify-center items-stretch">
 					{/* Card */}
-					{loading ? (
-						<p>loading....</p>
-					) : (
-						movies.map((movie) => {
-							// Mapping genre_ids ke nama genre
-							const movieGenres = movie.genre_ids
-								.map((id) => genres.find((genre) => genre.id === id)?.name)
-								.filter(Boolean) // Hapus undefined jika id tidak cocok
+					{movies.map((movie) => {
+						// Mapping genre_ids ke nama genre
+						const movieGenres = movie.genre_ids
+							.map((id) => genres.find((genre) => genre.id === id)?.name)
+							.filter(Boolean) // Hapus undefined jika id tidak cocok
 
-							return (
-								<MovieCard
-									title={movie.title}
-									poster={`${IMAGE_URL}/${movie.poster_path}`}
-									releaseDate={movie.release_date}
-									popularity={(
-										(movie.popularity / max_popularity) *
-										100
-									).toFixed(2)}
-									genres={movieGenres}
-									key={movie.id}
-								/>
-							)
-						})
-					)}
+						return (
+							<MovieCard
+								title={movie.title}
+								poster={`${IMAGE_URL}/${movie.poster_path}`}
+								releaseDate={movie.release_date}
+								popularity={((movie.popularity / max_popularity) * 100).toFixed(
+									2
+								)}
+								genres={movieGenres}
+								key={movie.id}
+							/>
+						)
+					})}
 				</div>
+				{page >= totalPages && (
+					<p className="my-6 font-montserrat text-lg text-center">
+						You&#39;ve reached the end of the list.
+					</p>
+				)}
+				{loading && (
+					<p className="my-6 font-montserrat text-lg text-center">Loading...</p>
+				)}
 			</main>
+
+			{/* Footer dan Sentinel */}
+			<footer
+				id="sentinel"
+				className="w-full h-20 bg-primary text-white flex items-center justify-center">
+				<p>&copy; 2025 MovieApp. All rights reserved.</p>
+			</footer>
 		</>
 	)
 }
