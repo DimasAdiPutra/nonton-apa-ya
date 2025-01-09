@@ -1,116 +1,95 @@
+import { useQuery } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
-
-// Components
 import MovieCard from '../components/MovieCard'
 import FilterAndSortModal from '../components/FilterAndSortModal'
-
-// Utilities
 import { fetchMovies, getGenres } from '../utils/api'
-import { useCallback } from 'react'
 
 const IMAGE_URL = import.meta.env.VITE_TMDB_IMAGE_URL
 
+/**
+ * HomePage component responsible for displaying a list of movies and a filter modal.
+ * It fetches movie data from an API using TanStack Query and handles user filters like sorting and genre selection.
+ */
 const HomePage = () => {
-	// Background Image untuk hero section
-	const [backgroundImage, setBackgroundImage] = useState('')
+	const [isModalOpen, setIsModalOpen] = useState(false) // State for controlling the filter modal visibility
+	const [genres, setGenres] = useState([]) // State for storing the genre list fetched from the API
+
+	const [selectedSort, setSelectedSort] = useState('popularity.desc') // State for the selected sorting option
+	const [pendingSort, setPendingSort] = useState(selectedSort) // State for temporarily storing the pending sort option
+
+	const [selectedGenre, setSelectedGenre] = useState('all') // State for the selected genre
+	const [pendingGenre, setPendingGenre] = useState(selectedGenre) // State for temporarily storing the pending genre
+
+	const [searchQuery, setSearchQuery] = useState('') // State for the search query input by the user
+
 	// eslint-disable-next-line no-unused-vars
 	const [page, setPage] = useState(1)
 
-	// Status modal
-	const [isModalOpen, setIsModalOpen] = useState(false)
-
-	// Simpan movies
-	const [movies, setMovies] = useState([])
-
-	// genre
-	const [genres, setGenres] = useState([])
-
-	// Sort option yang tersedia
-	const [sortOptions] = useState([
-		{ value: 'popularity.desc', label: 'Most Popular' },
-		{ value: 'popularity.asc', label: 'Least Popular' },
-		{ value: 'release_date.desc', label: 'Newest' },
-		{ value: 'release_date.asc', label: 'Oldest' },
-		{ value: 'vote_average.desc', label: 'Highest Rated' },
-		{ value: 'vote_average.asc', label: 'Lowest Rated' },
-	])
-
-	// Sort option yang di pilih
-	const [selectedSort, setSelectedSort] = useState('popularity.desc')
-	const [pendingSort, setPendingSort] = useState(selectedSort) // Sort sementara di modal
-
-	const [selectedGenre, setSelectedGenre] = useState('all') // Tambahkan state untuk genre
-	const [pendingGenre, setPendingGenre] = useState(selectedGenre) // Pending genre untuk modal
-
-	// Search Query
-	const [searchQuery, setSearchQuery] = useState('')
-
-	// Loading untuk unlimited scroll
-	const [loading, setLoading] = useState(false)
-
-	// Set background image untuk hero section
-	useEffect(() => {
-		const fetchInitialData = async () => {
-			try {
-				const data = await fetchMovies({ page })
-				if (data.results.length > 0) {
-					setBackgroundImage(`${IMAGE_URL}/${data.results[0].backdrop_path}`)
-				}
-			} catch (error) {
-				console.error('Failed to fetch initial data:', error)
-			}
-		}
-		fetchInitialData()
-	}, [page])
-
-	// Function to open modal
-	const openModal = () => setIsModalOpen(true)
-
-	// Function to close modal
-	const closeModal = () => setIsModalOpen(false)
-
-	// Ambil movies
-	const fetchMoviesList = useCallback(async () => {
-		setLoading(true)
-		try {
-			const data = await fetchMovies({
-				query: searchQuery !== '' ? searchQuery : undefined,
-				page,
-				sort: selectedSort,
-				genre: selectedGenre !== 'all' ? selectedGenre : undefined,
-			})
-
-			setMovies(data.results || [])
-		} catch (error) {
-			console.error('Failed to fetch movies:', error)
-		} finally {
-			setLoading(false)
-		}
-	}, [page, searchQuery, selectedGenre, selectedSort]) // Hanya tergantung pada selectedGenre
-
-	// ambil genres
+	// Fetch genres from the API on component mount
 	const fetchGenres = async () => {
 		const data = await getGenres()
 		setGenres(data)
 	}
 
 	useEffect(() => {
-		fetchGenres()
-		fetchMoviesList()
-	}, [fetchMoviesList])
+		fetchGenres() // Fetch genres when the component mounts
+	}, [])
 
+	/**
+	 * Fetch movie data using TanStack Query based on selected filters and search query.
+	 * - queryKey: A unique key for the query which includes the selected filters and search query.
+	 * - queryFn: The function that fetches the movie data based on the provided filters.
+	 * - onSuccess: Runs when the data is successfully fetched, updating the background image.
+	 */
+	const {
+		data: movieData,
+		isLoading,
+		error,
+	} = useQuery({
+		queryKey: ['movies', selectedSort, selectedGenre, searchQuery],
+		queryFn: async () =>
+			await fetchMovies({
+				query: searchQuery !== '' ? searchQuery : undefined,
+				sort: selectedSort,
+				genre: selectedGenre !== 'all' ? selectedGenre : undefined,
+			}),
+		enabled: true,
+	})
+
+	// Query terpisah untuk mengambil backdrop film pertama (jika ada)
+	const { data: backgroundImage } = useQuery({
+		queryKey: ['backgroundImage', page],
+		queryFn: async () => {
+			const backgroundImageTemp = await fetchMovies({
+				page,
+			})
+
+			if (backgroundImageTemp.results.length > 0) {
+				return `${IMAGE_URL}/${backgroundImageTemp.results[0].backdrop_path}`
+			}
+		},
+	})
+
+	/**
+	 * Applies the selected filters (genre and sort) when the user clicks "Apply" in the filter modal.
+	 */
 	const handleApplyFilters = () => {
-		setSelectedGenre(pendingGenre) // Terapkan sort yang dipilih di modal
-		setSelectedSort(pendingSort) // Terapkan sort yang dipilih di modal
-		setIsModalOpen(false) // Tutup modal
+		setSelectedGenre(pendingGenre)
+		setSelectedSort(pendingSort)
+		setIsModalOpen(false) // Close the modal after applying the filters
 	}
 
-	// mengubah Popularity jadi base 100
-	const max_popularity = 5000
+	// Sort options for the modal
+	const sortOptions = [
+		{ value: 'popularity.desc', label: 'Paling Popular' },
+		{ value: 'popularity.asc', label: 'Kurang Popular' },
+		{ value: 'release_date.desc', label: 'Yang Terbaru' },
+		{ value: 'release_date.asc', label: 'Yang Terlama' },
+	]
 
 	return (
 		<>
-			{/* Header */}
+			{/* Header Section */}
 			<header
 				className="hero min-h-screen text-base-100 relative after:absolute after:top-0 after:right-0 after:w-full after:h-full after:bg-black after:opacity-50 flex flex-col justify-center items-center"
 				style={{ backgroundImage: `url(${backgroundImage})` }}>
@@ -121,32 +100,18 @@ const HomePage = () => {
 					Cari dan temukan film yang kamu mau!
 				</p>
 				<a className="btn btn-primary text-base-100 w-max z-10">Lihat yuk!</a>
-
-				{/* Wave Svg */}
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					viewBox="0 0 1440 320"
-					className="w-full absolute bottom-0 z-10">
-					<path
-						fill="#fff"
-						fillOpacity="1"
-						d="M0,128L18.5,138.7C36.9,149,74,171,111,181.3C147.7,192,185,192,222,170.7C258.5,149,295,107,332,122.7C369.2,139,406,213,443,256C480,299,517,309,554,293.3C590.8,277,628,235,665,208C701.5,181,738,171,775,176C812.3,181,849,203,886,218.7C923.1,235,960,245,997,218.7C1033.8,192,1071,128,1108,117.3C1144.6,107,1182,149,1218,176C1255.4,203,1292,213,1329,197.3C1366.2,181,1403,139,1422,117.3L1440,96L1440,320L1421.5,320C1403.1,320,1366,320,1329,320C1292.3,320,1255,320,1218,320C1181.5,320,1145,320,1108,320C1070.8,320,1034,320,997,320C960,320,923,320,886,320C849.2,320,812,320,775,320C738.5,320,702,320,665,320C627.7,320,591,320,554,320C516.9,320,480,320,443,320C406.2,320,369,320,332,320C295.4,320,258,320,222,320C184.6,320,148,320,111,320C73.8,320,37,320,18,320L0,320Z"></path>
-				</svg>
 			</header>
 
-			{/* Main */}
+			{/* Main Content Section */}
 			<main className="pt-20">
-				{/* Search and filter */}
 				<div className="join flex w-full justify-center mb-10">
-					{/* Search Input */}
 					<label className="join-item input input-bordered flex items-center gap-2">
 						<input
 							type="text"
 							className="grow"
 							placeholder="Search"
-							onChange={(e) => setSearchQuery(e.target.value)}
+							onChange={(e) => setSearchQuery(e.target.value)} // Update search query on input change
 						/>
-						{/* Search SVG */}
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							viewBox="0 0 16 16"
@@ -159,9 +124,9 @@ const HomePage = () => {
 							/>
 						</svg>
 					</label>
-					{/* Filter Button */}
-					<button className="join-item btn btn-accent" onClick={openModal}>
-						{/* Filter SVG */}
+					<button
+						className="join-item btn btn-accent"
+						onClick={() => setIsModalOpen(true)}>
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							height="24px"
@@ -173,12 +138,12 @@ const HomePage = () => {
 					</button>
 				</div>
 
-				{/* Modal */}
+				{/* Filter Modal */}
 				<FilterAndSortModal
 					isModalOpen={isModalOpen}
 					onApply={handleApplyFilters}
-					onCancel={closeModal}
-					sortOptions={sortOptions}
+					onCancel={() => setIsModalOpen(false)}
+					sortOptions={sortOptions} // Passing sort options to the modal
 					selectedSort={pendingSort}
 					selectedGenre={pendingGenre}
 					onChangeSort={(e) => setPendingSort(e.target.value)}
@@ -186,27 +151,28 @@ const HomePage = () => {
 					genres={genres}
 				/>
 
-				{/* Cards */}
+				{/* Movie Cards */}
 				<div className="px-4 flex flex-wrap gap-6 justify-center items-stretch">
-					{/* Card */}
-					{loading ? (
-						<p>loading....</p>
+					{error ? (
+						<div className="w-full flex justify-center items-center py-10">
+							<p>Error loading movies: {error.message}</p>
+						</div>
+					) : isLoading ? (
+						<div className="w-full flex justify-center items-center py-10">
+							<p>Loading movies...</p>
+						</div>
 					) : (
-						movies.map((movie) => {
-							// Mapping genre_ids ke nama genre
+						movieData?.results?.map((movie) => {
 							const movieGenres = movie.genre_ids
 								.map((id) => genres.find((genre) => genre.id === id)?.name)
-								.filter(Boolean) // Hapus undefined jika id tidak cocok
+								.filter(Boolean)
 
 							return (
 								<MovieCard
 									title={movie.title}
 									poster={`${IMAGE_URL}/${movie.poster_path}`}
 									releaseDate={movie.release_date}
-									popularity={(
-										(movie.popularity / max_popularity) *
-										100
-									).toFixed(2)}
+									popularity={((movie.popularity / 5000) * 100).toFixed(2)}
 									genres={movieGenres}
 									key={movie.id}
 								/>
