@@ -1,20 +1,20 @@
-import { AnimatePresence } from 'motion/react'
-import DefaultLayouts from './layouts/DefaultLayouts'
-import HomePage from './pages/HomePage'
-import DetailsPage from './pages/DetailsPage'
+import { lazy, Suspense } from 'react'
 import { Route, Routes } from 'react-router'
+import LoadingScreen from './components/LoadingScreen'
+
+// Lazy load untuk halaman
+const HomePage = lazy(() => import('./pages/HomePage'))
+const DetailsPage = lazy(() => import('./pages/DetailsPage'))
 
 function App() {
 	return (
-		<AnimatePresence mode="wait">
+		<Suspense fallback={<LoadingScreen />}>
 			<Routes>
-				{/* DefaultLayout sebagai parent route */}
-				<Route path="/" element={<DefaultLayouts />}>
-					<Route index element={<HomePage />} /> {/* HomePage di "/" */}
-					<Route path="movie/:id" element={<DetailsPage />} />
-				</Route>
+				<Route index element={<HomePage />} /> {/* HomePage di "/" */}
+				<Route path="movie/:id" element={<DetailsPage />} />
+				{/* </Route> */}
 			</Routes>
-		</AnimatePresence>
+		</Suspense>
 	)
 }
 

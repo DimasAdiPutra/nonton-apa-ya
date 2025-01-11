@@ -170,7 +170,11 @@ const HomePage = () => {
 				<p className="mb-14 relative z-10">
 					Cari dan temukan film yang kamu mau!
 				</p>
-				<a className="btn btn-primary text-base-100 w-max z-10">Lihat yuk!</a>
+				<a
+					href="#main"
+					className="btn btn-primary text-base-100 w-max z-20 cursor-pointer">
+					Lihat yuk!
+				</a>
 
 				{/* Wave Svg */}
 				<svg
@@ -185,7 +189,7 @@ const HomePage = () => {
 			</header>
 
 			{/* Main */}
-			<main className="pt-20">
+			<main id="main" className="pt-20 scroll-smooth">
 				{/* Search and filter */}
 				<div className="join flex w-full justify-center mb-10">
 					{/* Search Input */}
