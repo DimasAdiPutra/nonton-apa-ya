@@ -6,4 +6,17 @@
 	* {
 		@apply font-montserrat;
 	}
+
+	#base {
+		@apply relative;
+	}
+}
+
+@layer components {
+	.overlay {
+		@apply fixed inset-0 bg-black bg-opacity-50 flex justify-center items-end md:items-center z-50;
+	}
+	.overlay .content {
+		@apply bg-white w-full md:w-1/2 p-4 rounded-t-lg md:rounded-lg shadow-lg relative;
+	}
 }

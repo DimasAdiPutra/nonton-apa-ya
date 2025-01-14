@@ -1,20 +1,28 @@
-import { AnimatePresence } from 'motion/react'
-import DefaultLayouts from './layouts/DefaultLayouts'
-import HomePage from './pages/HomePage'
+import { Route, Routes, useLocation } from 'react-router'
+
 import DetailsPage from './pages/DetailsPage'
-import { Route, Routes } from 'react-router'
+import { lazy } from 'react'
+import { Suspense } from 'react'
+import LoadingScreen from './components/LoadingScreen'
+import { AnimatePresence } from 'motion/react'
+
+// Lazy load halaman
+const HomePage = lazy(() => import('./pages/HomePage'))
 
 function App() {
+	const location = useLocation()
+
 	return (
-		<AnimatePresence mode="wait">
-			<Routes>
-				{/* DefaultLayout sebagai parent route */}
-				<Route path="/" element={<DefaultLayouts />}>
-					<Route index element={<HomePage />} /> {/* HomePage di "/" */}
-					<Route path="movie/:id" element={<DetailsPage />} />
-				</Route>
-			</Routes>
-		</AnimatePresence>
+		<Suspense fallback={<LoadingScreen /> /* Placeholder kosong */}>
+			<AnimatePresence mode="wait">
+				<Routes location={location} key={location.pathname}>
+					{/* HomePage */}
+					<Route index element={<HomePage />} />
+					{/* DetailsPage */}
+					<Route path="/movie/:id" element={<DetailsPage />} />
+				</Routes>
+			</AnimatePresence>
+		</Suspense>
 	)
 }
 
