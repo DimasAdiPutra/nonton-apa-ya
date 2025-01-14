@@ -66,6 +66,17 @@ export const fetchMovies = async ({
 	}
 }
 
+export const fetchMovieDetail = async (id) => {
+	const response = await axios.get(`${BASE_URL}/movie/${id}`, {
+		params: {
+			api_key: API_KEY,
+			language: 'id-ID',
+		},
+	})
+
+	return response.data
+}
+
 export const getGenres = async () => {
 	try {
 		const response = await axios.get(`${BASE_URL}/genre/movie/list`, {
